@@ -1,0 +1,10 @@
+bottle
+pymongo
+requests
+lxml
+chardet
+cssselect
+readability-lxml
+gevent
+feedparser
+PyRSS2Gen
