@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 from gevent import monkey; monkey.patch_all()
-from bottle import route, run, template, redirect, request, response, static_file
+from bottle import route, run, template, redirect, request, response
 from lxml import etree, html
 from readability.readability import Document
+import os
 
 import gevent
 import feedparser
@@ -85,6 +86,9 @@ def full_topic(topic):
         url = (r'http://www.reddit.com/r/%s/.rss' % topic)
         response.set_header('Content-Type','application/xml')
         return parse_rss(url)
+
+
+run(host='0.0.0.0', port=int(os.environ.get("PORT",8088)), debug=True, server='gevent')
 
 if __name__ == '__main__':
     run(host='127.0.0.1', port=8088, debug=True, server='gevent')
