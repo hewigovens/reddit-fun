@@ -4,7 +4,7 @@ from gevent import monkey; monkey.patch_all()
 from bottle import route, run, template, redirect, request, response
 from lxml import etree, html
 from readability.readability import Document
-import os
+import sys
 
 import gevent
 import feedparser
@@ -88,7 +88,7 @@ def full_topic(topic):
         return parse_rss(url)
 
 
-run(host='0.0.0.0', port=int(os.environ.get("PORT",8088)))
+run(host='0.0.0.0', port=sys.argv[1])
 
 if __name__ == '__main__':
     run(host='127.0.0.1', port=8088, debug=True, server='gevent')
