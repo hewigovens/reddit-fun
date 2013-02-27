@@ -72,7 +72,7 @@ def parse_rss(url):
             guid = doc.createElement('guid')
             guid.appendChild(doc.createTextNode(i['link']))
 
-            description = doc.createElement('description')
+            description = doc.createElement('content:encoded')
             description.appendChild(doc.createCDATASection(jobs[index].value))
 
             item.appendChild(title)
