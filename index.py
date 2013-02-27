@@ -5,7 +5,7 @@ monkey.patch_all()
 from bottle import route, run, template, redirect, request, response
 from xml.dom.minidom import Document
 from lxml import etree
-# from readability.readability import Document
+from readability.readability import Document as readableDocument
 import os
 
 import gevent
@@ -92,13 +92,12 @@ def fetch_article(title, url):
         headers = {'User-Agent': 'happy happy bot 0.1 by /u/hewigovens'}
         data = requests.get(url, timeout=5, headers=headers).text
 
-        return data
-        # readable_article = Document(data)
-        # readable_summary = readable_article.summary()
+        readable_article = readableDocument(data)
+        readable_summary = readable_article.summary()
         # readable_summary_html = html.fromstring(readable_summary)
         # readable_text = readable_summary_html.text_content()
 
-        # return readable_text
+        return readable_summary
     except Exception as e:
         logging.error(e.message)
         return None
