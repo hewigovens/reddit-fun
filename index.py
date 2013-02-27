@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
-from gevent import monkey; monkey.patch_all()
+from gevent import monkey
+monkey.patch_all()
 from bottle import route, run, template, redirect, request, response
+from xml.dom.minidom import Document
 from lxml import etree
 # from readability.readability import Document
 import os
@@ -32,47 +34,56 @@ def parse_rss(url):
 
     # print articles
 
-    jobs = [gevent.spawn(fetch_article, articles[url], url) for url in articles.keys()]
+    jobs = [gevent.spawn(
+        fetch_article, articles[url], url) for url in articles.keys()]
     gevent.joinall(jobs, timeout=8)
 
-    full_rss = etree.Element('rss', attrib={'version': '2.0'})
-    channel = etree.SubElement(full_rss, 'channel')
+    doc = Document()
 
-    title = etree.SubElement(channel, 'title')
-    title.text = feed['channel']['title']
+    full_rss = doc.createElement('rss')
+    full_rss.setAttribute('version', '2.0')
 
-    link = etree.SubElement(channel, 'link')
-    link.text = feed['channel']['link']
+    channel = doc.createElement('channel')
+    full_rss.appendChild(channel)
 
-    description = etree.SubElement(channel, 'description')
-    description.text = feed['channel']['description']
+    title = doc.createElement('title')
+    title.appendChild(doc.createTextNode(feed['channel']['title']))
+    channel.appendChild(title)
+
+    link = doc.createElement('link')
+    link.appendChild(doc.createTextNode(feed['channel']['link']))
+    channel.appendChild(link)
+
+    description = doc.createElement('description')
+    description.appendChild(doc.createTextNode(feed['channel']['description']))
+    channel.appendChild(description)
 
     for index in xrange(len(jobs)):
         if jobs[index].value:
 
             i = feed['items'][index]
-            item = etree.Element('item')
-            title = etree.Element('title')
-            title.text = i['title']
+            item = doc.createElement('item')
+            title = doc.createElement('title')
+            title.appendChild(doc.createTextNode(i['title']))
 
-            link = etree.Element('link')
-            link.text = i['link']
+            link = doc.createElement('link')
+            link.appendChild(doc.createTextNode(i['link']))
 
-            guid = etree.Element('guid')
-            guid.text = i['link']
+            guid = doc.createElement('guid')
+            guid.appendChild(doc.createTextNode(i['link']))
 
-            description = etree.Element('description')
-            description.text = r'<![CDATA[ %s ]]' % jobs[index].value
+            description = doc.createElement('description')
+            description.appendChild(doc.createCDATASection(jobs[index].value))
 
-            item.append(title)
-            item.append(link)
-            item.append(guid)
-            item.append(description)
+            item.appendChild(title)
+            item.appendChild(link)
+            item.appendChild(guid)
+            item.appendChild(description)
 
-            channel.append(item)
+            channel.appendChild(item)
 
-    root = etree.ElementTree(full_rss)
-    return etree.tostring(root)
+    doc.appendChild(full_rss)
+    return doc.toxml()
 
 
 def fetch_article(title, url):
