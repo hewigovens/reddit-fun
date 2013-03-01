@@ -4,7 +4,7 @@ from gevent import monkey
 monkey.patch_all()
 from bottle import route, run, template, redirect, request, response
 from xml.dom.minidom import Document
-from lxml import etree
+from lxml import etree, html
 from readability.readability import Document as readableDocument
 import os
 
@@ -94,10 +94,12 @@ def fetch_article(title, url):
 
         readable_article = readableDocument(data)
         readable_summary = readable_article.summary()
-        # readable_summary_html = html.fromstring(readable_summary)
+
+        readable_summary_html = html.fromstring(readable_summary)
+        body = readable_summary_html.xpath('/html/body/div')[0]
         # readable_text = readable_summary_html.text_content()
 
-        return readable_summary
+        return html.tostring(body)
     except Exception as e:
         logging.error(e.message)
         return None
