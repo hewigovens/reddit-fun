@@ -22,7 +22,7 @@ logging.basicConfig(
 def parse_rss(url):
 
     feed = feedparser.parse(url)
-    articles = {}
+    articles = []
 
     # print feed['items'][0]
 
@@ -30,12 +30,12 @@ def parse_rss(url):
         text = StringIO.StringIO('<html>%s</html>' % item['description'])
         tree = etree.parse(text)
         a = tree.xpath('//a[text()="[link]"]/@href')
-        articles[''.join(a)] = item['title']
+        articles.append((''.join(a), item['title']))
 
     # print articles
 
     jobs = [gevent.spawn(
-        fetch_article, articles[url], url) for url in articles.keys()]
+        fetch_article, article[1], article[0]) for article in articles]
     gevent.joinall(jobs, timeout=8)
 
     doc = Document()
@@ -59,7 +59,7 @@ def parse_rss(url):
     channel.appendChild(description)
 
     for index in xrange(len(jobs)):
-        if jobs[index].value:
+        if jobs[index].successful():
 
             i = feed['items'][index]
             item = doc.createElement('item')
@@ -72,7 +72,7 @@ def parse_rss(url):
             guid = doc.createElement('guid')
             guid.appendChild(doc.createTextNode(i['link']))
 
-            description = doc.createElement('content:encoded')
+            description = doc.createElement('description')
             description.appendChild(doc.createCDATASection(jobs[index].value))
 
             item.appendChild(title)
@@ -88,7 +88,7 @@ def parse_rss(url):
 
 def fetch_article(title, url):
     try:
-        logging.info('start fetch %s: %s' % (title, url))
+        #logging.info('start fetch %s: %s' % (title, url))
         headers = {'User-Agent': 'happy happy bot 0.1 by /u/hewigovens'}
         data = requests.get(url, timeout=5, headers=headers).text
 
@@ -102,7 +102,7 @@ def fetch_article(title, url):
         return html.tostring(body)
     except Exception as e:
         logging.error(e.message)
-        return None
+        return ""
 
 
 @route('/')
@@ -128,4 +128,4 @@ def full_topic(topic):
 
 
 if __name__ == '__main__':
-    run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    run(host='0.0.0.0', port=int(os.environ.get('PORT', 8088)), server='gevent')
