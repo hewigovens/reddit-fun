@@ -6,5 +6,6 @@ chardet
 cssselect
 readability-lxml
 gevent
+gunicorn
 feedparser
 PyRSS2Gen

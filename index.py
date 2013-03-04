@@ -2,7 +2,7 @@
 # coding: utf-8
 from gevent import monkey
 monkey.patch_all()
-from bottle import route, run, template, redirect, request, response
+from bottle import route, run, template, redirect, request, response, default_app
 from xml.dom.minidom import Document
 from lxml import etree, html
 from readability.readability import Document as readableDocument
@@ -126,6 +126,7 @@ def full_topic(topic):
         response.set_header('Content-Type', 'application/xml')
         return parse_rss(url)
 
-
 if __name__ == '__main__':
     run(host='0.0.0.0', port=int(os.environ.get('PORT', 8088)), server='gevent')
+
+app=default_app()
