@@ -17,7 +17,7 @@ import json
 import time
 
 __user_agent__ = 'happy happy bot 0.1 by /u/hewigovens'
-__fetch_interval__ = 3600
+__fetch_interval__ = 1800
 __last_timestamp__ = 0
 __last_burt_rss__ = None
 
