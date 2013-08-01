@@ -32,6 +32,38 @@ MIME_TEMPLATE = {
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 
+def parse_reddit_json(subreddit, minimum_score):
+    subreddit_url = 'http://www.reddit.com/r/%s' % subreddit
+    subreddit_posts_url = 'http://www.reddit.com/r/%s/new.json' % subreddit
+    subreddit_about_url = 'http://www.reddit.com/r/%s/about.json' % subreddit
+
+    data = requests.get(subreddit_posts_url, headers={'User-Agent': __user_agent__}).text
+    posts_data = json.loads(data)
+    reddit_posts = posts_data['data']['children']
+    reddit_items = []
+
+    for post in reddit_posts:
+        post_data = post['data']
+        if post_data['score'] > minimum_score:
+            reddit_items.append(
+                {
+                    'ref_link': post_data['url'],
+                    'ref_title': post_data['title'],
+                    'link': post_data['permalink'],
+                    'score': post_data['score']
+                }
+            )
+    data = requests.get(subreddit_about_url, headers={'User-Agent': __user_agent__}).text
+    about_data = json.loads(data)
+
+    feed_info = {
+        'title': about_data['data']['title'],
+        'link': subreddit_url,
+        'description': about_data['data']['public_description']
+    }
+    return reddit_items, feed_info
+
+
 def parse_reddit_rss(reddit_rss_url, minimum_score):
     feed = feedparser.parse(reddit_rss_url)
     reddit_itmes = []
@@ -56,11 +88,11 @@ def parse_reddit_rss(reddit_rss_url, minimum_score):
     return reddit_itmes, feed_info
 
 
-def burn_rss(reddit_rss_url, minimum_score):
+def burn_rss(subreddit, minimum_score):
     global __last_burt_rss__
     global __last_timestamp__
     if int(time.time()) - __last_timestamp__ > __fetch_interval__:
-        reddit_items, feed_info = parse_reddit_rss(reddit_rss_url, minimum_score)
+        reddit_items, feed_info = parse_reddit_json(subreddit, minimum_score)
 
         jobs = [gevent.spawn(fetch_article, item['ref_link']) for item in reddit_items]
         gevent.joinall(jobs, timeout=15)
@@ -183,20 +215,19 @@ def index():
 
 @route('/add/')
 def add_url():
-    topic = request.query.get('topic')
+    subreddit = request.query.get('subreddit')
     minimum_score = request.query.get('minimum_score')
-    if not topic:
-        topic = r'programming'
+    if not subreddit:
+        subreddit = r'programming'
     if not minimum_score:
-        minimum_score = '25'
-    return redirect('/reddit/%s/%s' % (topic, minimum_score))
+        minimum_score = '10'
+    return redirect('/reddit/%s/%s' % (subreddit, minimum_score))
 
 
-@route('/reddit/<topic>/<minimum_score:int>')
-def full_reddit_rss(topic, minimum_score):
-    reddit_rss_url = (r'http://www.reddit.com/r/%s/.rss' % topic)
+@route('/reddit/<subreddit>/<minimum_score:int>')
+def full_reddit_rss(subreddit, minimum_score):
     response.set_header('Content-Type', 'application/xml')
-    return burn_rss(reddit_rss_url, minimum_score)
+    return burn_rss(subreddit, minimum_score)
 
 if __name__ == '__main__':
     run(host='0.0.0.0', port=int(os.environ.get('PORT', 8088)), server='gevent')

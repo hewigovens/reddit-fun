@@ -2,13 +2,13 @@
 <body>
 <center>
     <p>Full reddit topic rss feed:</p>
-    <p>http://reddit.herokuapp.com/reddit/[topic_name]/[score_limit]</p>
+    <p>http://reddit.herokuapp.com/reddit/[subreddit]/[score_limit]</p>
     <form name='input' action='/add/' method='get'>
     <table>
         <tr>
             <td align="right"><p id="text">Topic:</p></td>
             <td align="left">
-		        <input type="text" name="topic">
+		        <input type="text" name="subreddit">
 	        </td>
             </tr>
             <tr>
