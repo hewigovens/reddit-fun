@@ -18,8 +18,7 @@ import time
 
 __user_agent__ = 'happy happy bot 0.1 by /u/hewigovens'
 __fetch_interval__ = 1800
-__last_timestamp__ = 0
-__last_burt_rss__ = None
+__last_burt_rss__ = {}
 
 MIME_TEMPLATE = {
     'image/jpeg': """<img width="100" height="100" alt="__placeholder__" src="__placeholder__">""",
@@ -44,15 +43,14 @@ def parse_reddit_json(subreddit, minimum_score):
 
     for post in reddit_posts:
         post_data = post['data']
-        if post_data['score'] > minimum_score:
-            reddit_items.append(
-                {
-                    'ref_link': post_data['url'],
-                    'ref_title': post_data['title'],
-                    'link': post_data['permalink'],
-                    'score': post_data['score']
-                }
-            )
+        reddit_items.append(
+            {
+                'ref_link': post_data['url'],
+                'ref_title': post_data['title'],
+                'link': post_data['permalink'],
+                'score': post_data['score']
+            }
+        )
     data = requests.get(subreddit_about_url, headers={'User-Agent': __user_agent__}).text
     about_data = json.loads(data)
 
@@ -81,7 +79,8 @@ def parse_reddit_rss(reddit_rss_url, minimum_score):
             {
                 'ref_link': ''.join(ref_link),
                 'ref_title': item['title'],
-                'link': item['link']
+                'link': item['link'],
+                'score': fetch_reddit_score(item['ref_link'])
             }
         )
     filter_with_score(reddit_itmes, minimum_score)
@@ -90,8 +89,11 @@ def parse_reddit_rss(reddit_rss_url, minimum_score):
 
 def burn_rss(subreddit, minimum_score):
     global __last_burt_rss__
-    global __last_timestamp__
-    if int(time.time()) - __last_timestamp__ > __fetch_interval__:
+
+    if subreddit not in __last_burt_rss__:
+        __last_burt_rss__[subreddit] = {'reddit_items':None, 'timestamp':0, 'feed_info':None}
+
+    if int(time.time()) - __last_burt_rss__[subreddit]['timestamp'] > __fetch_interval__:
         reddit_items, feed_info = parse_reddit_json(subreddit, minimum_score)
 
         jobs = [gevent.spawn(fetch_article, item['ref_link']) for item in reddit_items]
@@ -104,10 +106,16 @@ def burn_rss(subreddit, minimum_score):
             else:
                 reddit_items[index]['content'] = job.value
 
-        __last_burt_rss__ = construct_feed(reddit_items, feed_info)
-        __last_timestamp__ = int(time.time())
+        __last_burt_rss__[subreddit]['reddit_items'] = reddit_items
+        __last_burt_rss__[subreddit]['feed_info'] = feed_info
+        __last_burt_rss__[subreddit]['timestamp'] = int(time.time())
 
-    return __last_burt_rss__
+
+    reddit_items = __last_burt_rss__[subreddit]['reddit_items'][:]
+    feed_info = __last_burt_rss__[subreddit]['feed_info']
+
+    filter_with_score(reddit_items, minimum_score)
+    return construct_feed(reddit_items, feed_info)
 
 
 def construct_feed(reddit_items, feed_info):
@@ -159,11 +167,8 @@ def construct_feed(reddit_items, feed_info):
 def filter_with_score(reddit_itmes, minimum_score):
     remove_list = []
     for item in reddit_itmes:
-        score = fetch_reddit_score(item['ref_link'])
-        if score < minimum_score:
+        if item['score'] < minimum_score:
             remove_list.insert(0, reddit_itmes.index(item))
-        else:
-            item['score'] = score
     for index in remove_list:
         reddit_itmes.pop(index)
 
@@ -188,15 +193,15 @@ def fetch_reddit_score(ref_link):
 def fetch_article(url):
     try:
         headers = {'User-Agent': __user_agent__}
-        response = requests.get(url, timeout=10, headers=headers)
+        resp = requests.get(url, timeout=10, headers=headers)
 
-        content_type = response.headers['Content-Type']
+        content_type = resp.headers['Content-Type']
 
         if content_type in MIME_TEMPLATE:
             html_template = MIME_TEMPLATE[content_type]
             return html.tostring(html_template.replace('__placeholder__', url))
         else:
-            readable_article = readableDocument(response.text)
+            readable_article = readableDocument(resp.text)
             readable_summary = readable_article.summary()
             readable_summary_html = html.fromstring(readable_summary)
             body = readable_summary_html.xpath('/html/body/div')[0]
